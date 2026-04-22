@@ -7,6 +7,7 @@ It includes:
 - A Q-learning RL agent trained by self-play.
 - A non-ML heuristic agent.
 - Evaluation and match-play CLI commands.
+- A simple browser frontend to watch matches step-by-step.
 
 No external libraries are required (Python standard library only).
 
@@ -89,6 +90,32 @@ Play one verbose game:
 ```bash
 python main.py play --model-path models/q_table.json
 ```
+
+## Simple frontend (browser view)
+
+Run the web app:
+
+```bash
+python web_app.py --model-path models/q_table.json
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000
+```
+
+Buttons in the UI:
+- `New Game`: reset the board.
+- `Step`: play exactly one move (RL then heuristic by turns).
+- `Auto Play`: finish the game automatically.
+
+The UI shows:
+- Current board and turn.
+- `|det(A)|` and condition number.
+- Player rewards and winner.
+
+If you changed server code and still see old behavior, stop old server processes and restart `web_app.py`, then hard refresh the browser.
 
 ## Useful options
 

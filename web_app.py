@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from matrix_game.agents import HeuristicAgent, RLAgent
 from matrix_game.core import GameConfig, MatrixGame
@@ -58,10 +59,17 @@ class GameSession:
             "done": self.state.done,
             "winner": self.state.winner,
             "rewards": self.state.rewards,
-            "det_abs": self.state.det_abs,
-            "condition_number": self.state.condition_number,
+            "det_abs": _safe_float(self.state.det_abs),
+            "condition_number": _safe_float(self.state.condition_number),
             "undo_tokens": self.state.undo_tokens,
         }
+
+
+def _safe_float(value: float | int) -> float | None:
+    f = float(value)
+    if not math.isfinite(f):
+        return None
+    return f
 
 
 class App:
@@ -72,7 +80,7 @@ class App:
 def make_handler(app: App):
     class Handler(BaseHTTPRequestHandler):
         def _json(self, data: dict, status: int = 200) -> None:
-            payload = json.dumps(data).encode("utf-8")
+            payload = json.dumps(data, allow_nan=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))

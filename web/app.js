@@ -34,10 +34,18 @@ function render(state) {
       ? "RL (P0)"
       : "Heuristic (P1)";
 
+  const formatMetric = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      return "inf";
+    }
+    return n.toExponential(4);
+  };
+
   statsEl.innerHTML = [
     `<div class="card">Current Player: P${state.current_player}</div>`,
-    `<div class="card">det(A) abs: ${Number(state.det_abs).toExponential(4)}</div>`,
-    `<div class="card">cond(A): ${Number(state.condition_number).toExponential(4)}</div>`,
+    `<div class="card">det(A) abs: ${formatMetric(state.det_abs)}</div>`,
+    `<div class="card">cond(A): ${formatMetric(state.condition_number)}</div>`,
     `<div class="card">Rewards: [${state.rewards.map(v => v.toFixed(2)).join(", ")}]</div>`,
     `<div class="card">Undo tokens: [${state.undo_tokens.join(", ")}]</div>`,
     `<div class="card">Winner: ${winnerText}</div>`,
