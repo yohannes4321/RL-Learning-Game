@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Matrix Game Viewer</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>4x4 Matrix Game Viewer</h1>
+    <p class="sub">Player 0: RL agent, Player 1: Heuristic agent</p>
+
+    <section class="panel">
+      <div class="controls">
+        <button id="newGame">New Game</button>
+        <button id="step">Step</button>
+        <button id="auto">Auto Play</button>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="board" id="board"></div>
+      <div class="status" id="status"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
