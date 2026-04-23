@@ -1,0 +1,52 @@
+Reinforcement Learning and Q-Learning in This Matrix Game Project
+
+Reinforcement Learning (RL) is a learning paradigm where an agent improves behavior by interacting with an environment and receiving scalar feedback called reward. Unlike supervised learning, RL does not require labeled examples of the correct action at each state. Instead, it learns a policy that maximizes long-term cumulative reward through trial, error, and delayed credit assignment. In most RL settings, an interaction cycle is: observe state s, choose action a, receive reward r, transition to next state s'. The core challenge is balancing exploration (trying uncertain actions) and exploitation (choosing currently best-known actions).
+
+In this project, the environment is a two-player 4x4 matrix-construction game. Players alternately place non-zero values into empty cells, and the strategic objective is to push the matrix toward singularity while avoiding penalties. The game tracks matrix quality using two numerical indicators:
+1) absolute determinant |det(A)|, where lower values indicate nearer singularity,
+2) condition number cond(A) in 1-norm, where larger values indicate stronger ill-conditioning.
+
+The reward function is shaped to guide learning toward the target behavior. A move receives positive signal if it reduces |det(A)| and if it increases log-scaled condition number. Additional constraints and signals include penalties for invalid actions and zero-sum fully filled rows, plus terminal bonuses when singularity is reached (or when the board is filled). This is a practical RL design: sparse terminal success is supplemented by dense intermediate feedback, making learning faster and more stable.
+
+Q-Learning: Specific Description
+
+Q-learning is an off-policy temporal-difference control algorithm. It estimates a state-action value function Q(s, a), interpreted as expected discounted return after taking action a in state s and then following a greedy policy. The standard update used is:
+
+Q(s, a) <- Q(s, a) + alpha * [r + gamma * max_a' Q(s', a') - Q(s, a)]
+
+where alpha is the learning rate and gamma is the discount factor.
+
+In this implementation:
+- alpha = 0.15, gamma = 0.95,
+- epsilon-greedy exploration starts high and decays linearly (epsilon_start = 1.0 to epsilon_end = 0.05),
+- training is self-play: one learner policy controls both players over many episodes.
+
+At each step, the learner picks an action with epsilon-greedy policy:
+- with probability epsilon, it explores (random valid action),
+- otherwise it exploits (action with highest Q-value; ties broken randomly).
+
+After applying an action, it computes the bootstrapped target r + gamma * max_a' Q(s', a'), then updates Q(s, a). If the next state is terminal, max_a' Q(s', a') is treated as 0. The Q-table is persisted to JSON so learned behavior can be reused by evaluation and web gameplay.
+
+Elegant Methods Used in the Implementation
+
+This codebase includes several elegant engineering choices that make tabular Q-learning practical for a combinatorial board game:
+
+1) Compact state abstraction by bucketization.
+A raw 4x4 board with value choices has a large state space. Instead of indexing Q-values by exact board tensors, the project compresses state into a compact key containing:
+- current player,
+- fill-level bin,
+- determinant-magnitude bucket,
+- condition-number bucket.
+
+This is a strong abstraction: it preserves the game-theoretic signal most relevant to near-singularity while dramatically reducing Q-table size. In practice, this improves sample efficiency and memory footprint compared with naive tabular encoding.
+
+2) Reward shaping aligned to numerical objective.
+The reward combines determinant reduction and condition-number increase using a weighted, log-stabilized formulation. This makes gradients in behavior visible before terminal states occur. It is an elegant bridge between linear-algebraic goals and RL optimization.
+
+3) Lightweight terminal credit assignment.
+After terminal outcomes, the learner adds a bonus/penalty update to each side's most recent move (winner and loser). This is a minimal but effective way to propagate end-of-episode information backward without implementing full Monte Carlo return backups or n-step methods.
+
+4) Numerically grounded environment metrics without external dependencies.
+Determinant is computed through Gaussian elimination with pivoting, and matrix inverse/condition number through Gauss-Jordan style operations. The approach is transparent, educational, and sufficient for a 4x4 setting.
+
+Overall, the implementation is a clean example of applied RL: it uses classic Q-learning, practical exploration scheduling, domain-aware reward shaping, and compact feature-based state representation to make a difficult strategic optimization task tractable.

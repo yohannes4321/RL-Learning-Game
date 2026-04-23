@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
 from typing import Tuple
 
 from matrix_game.agents import HeuristicAgent, RLAgent
@@ -34,6 +35,58 @@ def play_match(game: MatrixGame, a0, a1, verbose: bool = False) -> Tuple[int | N
     return state.winner, state.rewards, state.det_abs, state.condition_number
 
 
+def train_rl_vs_heuristic(learner: QLearner, episodes: int, seed: int | None = None) -> dict[str, float]:
+    # Keep RL fixed as P0 and heuristic as P1.
+    if seed is not None:
+        random.seed(seed)
+
+    heuristic = HeuristicAgent()
+    wins = [0, 0]
+    draws = 0
+
+    for ep in range(1, episodes + 1):
+        epsilon = learner._epsilon(ep)
+        state = learner.game.initial_state()
+
+        while not state.done:
+            if state.current_player == 0:
+                s_key = learner.policy.state_to_key(state)
+                action = learner.policy.epsilon_greedy_action(state, epsilon)
+
+                next_state, reward = learner.game.apply_action(state, action)
+
+                if next_state.done:
+                    target = reward
+                    state = next_state
+                else:
+                    opp_action = heuristic.choose_action(learner.game, next_state)
+                    post_opp_state, _ = learner.game.apply_action(next_state, opp_action)
+                    max_next = 0.0 if post_opp_state.done else learner.policy.max_q(post_opp_state)
+                    target = reward + learner.cfg.gamma * max_next
+                    state = post_opp_state
+
+                old_q = learner.policy.q_value(s_key, action)
+                new_q = old_q + learner.cfg.alpha * (target - old_q)
+                learner.policy.set_q_value(s_key, action, new_q)
+            else:
+                # Safety branch in case turn order is altered in future variants.
+                opp_action = heuristic.choose_action(learner.game, state)
+                state, _ = learner.game.apply_action(state, opp_action)
+
+        if state.winner is None:
+            draws += 1
+        else:
+            wins[state.winner] += 1
+
+    return {
+        "episodes": float(episodes),
+        "p0_wins": float(wins[0]),
+        "p1_wins": float(wins[1]),
+        "draws": float(draws),
+        "q_states": float(len(learner.policy.q_table)),
+    }
+
+
 def run_train(args):
     cfg = GameConfig(
         size=4,
@@ -44,12 +97,12 @@ def run_train(args):
     game = MatrixGame(config=cfg, seed=args.seed)
     learner = QLearner(game)
 
-    metrics = learner.train_self_play(args.episodes, seed=args.seed)
+    metrics = train_rl_vs_heuristic(learner, args.episodes, seed=args.seed)
 
     os.makedirs(os.path.dirname(args.model_path) or ".", exist_ok=True)
     learner.save(args.model_path)
 
-    print("Training completed")
+    print("Training completed (RL as P0 vs Heuristic as P1)")
     print(f"Episodes: {int(metrics['episodes'])}")
     print(f"P0 wins:  {int(metrics['p0_wins'])}")
     print(f"P1 wins:  {int(metrics['p1_wins'])}")
@@ -140,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only allow exact singular termination after this many cells are filled",
     )
 
-    train_p = sub.add_parser("train", parents=[common], help="Train RL by self-play")
+    train_p = sub.add_parser("train", parents=[common], help="Train RL vs heuristic")
     train_p.add_argument("--episodes", type=int, default=5000)
 
     eval_p = sub.add_parser("eval", parents=[common], help="Evaluate RL vs heuristic")
